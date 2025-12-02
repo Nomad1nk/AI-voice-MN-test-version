@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky Dental Clinic - Bolor AI</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            font-weight: 300;
+            margin-bottom: 40px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .phone-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .call-btn {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+            transition: all 0.3s ease;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .call-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 40px rgba(76, 175, 80, 0.8);
+        }
+
+        .call-btn svg {
+            width: 40px;
+            height: 40px;
+            fill: white;
+        }
+
+        .pulse {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: rgba(76, 175, 80, 0.3);
+            animation: pulse-animation 2s infinite;
+            z-index: 1;
+            display: none;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-size: 1.5rem;
+            color: #ffffff;
+            height: 30px;
+            text-align: center;
+        }
+
+        .transcript {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 600px;
+            text-align: left;
+            color: #e0e0e0;
+            font-size: 1rem;
+            line-height: 1.5;
+            height: 200px;
+            overflow-y: auto;
+            background-color: #1e1e1e;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        #debugLog {
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: #888;
+            height: 100px;
+            overflow-y: auto;
+            width: 100%;
+            max-width: 600px;
+            background-color: #111;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            border: 1px solid #333;
+        }
+
+        @keyframes pulse-animation {
+            0% {
+                transform: scale(0.8);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
+        .active .pulse {
+            display: block;
+        }
+
+        .active .call-btn {
+            background: linear-gradient(135deg, #F44336, #C62828);
+            box-shadow: 0 0 20px rgba(244, 67, 54, 0.5);
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>SKY DENTAL CLINIC</h1>
+
+    <div class="phone-container" id="phoneContainer">
+        <div class="pulse"></div>
+        <button class="call-btn" id="callBtn" onclick="toggleCall()">
+            <!-- Phone Icon -->
+            <svg viewBox="0 0 24 24">
+                <path
+                    d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" />
+            </svg>
+        </button>
+    </div>
+
+    <div class="status" id="statusText">Залгах</div>
+
+    <!-- Volume Meter -->
+    <div style="width: 200px; height: 6px; background: #333; margin-top: 15px; border-radius: 3px; overflow: hidden;">
+        <div id="volumeMeter" style="width: 0%; height: 100%; background: #4CAF50; transition: width 0.1s;"></div>
+    </div>
+
+    <!-- Manual Controls -->
+    <div class="controls">
+        <button class="btn-small" onclick="stopCall()" style="background: #d32f2f; color: white;">Таслах</button>
+        <button class="btn-small" onclick="manualSend()" style="background: #2196F3; color: white;">Ярьж
+            дууслаа</button>
+    </div>
+
+    <!-- Transcript -->
+    <div class="transcript" id="transcript"></div>
+
+    <!-- Debug Log -->
+    <div id="debugLog"></div>
+
+    <script>
+        let isCalling = false;
+        let mediaRecorder;
+        let audioChunks = [];
+        let audioContext;
+        let analyser;
+        let silenceStart = Date.now();
+        let isSpeaking = false;
+        let silenceThreshold = 1500; // 1.5s silence
+        let volumeThreshold = 0.01; // More sensitive
+        let checkSilenceInterval;
+
+        function log(msg) {
+            console.log(msg);
+            const d = document.getElementById('debugLog');
+            d.innerText = msg + "\n" + d.innerText;
+        }
+
+        async function toggleCall() {
+            if (!isCalling) {
+                await startCall();
+            } else {
+                stopCall();
+            }
+        }
+
+        async function startCall() {
+            try {
+                log("Микрофон хайж байна...");
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                log("Микрофон олдлоо.");
+
+                isCalling = true;
+                document.getElementById('phoneContainer').classList.add('active');
+                document.getElementById('statusText').innerText = "Холбогдож байна...";
+
+                // Reset backend
+                await fetch('/reset');
+
+                // Setup Audio Context for Silence Detection
+                audioContext = new AudioContext();
+                const source = audioContext.createMediaStreamSource(stream);
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                source.connect(analyser);
+
+                // Setup MediaRecorder
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    log("Бичлэг зогслоо. Хэсгүүд: " + audioChunks.length);
+                    if (audioChunks.length > 0) {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        audioChunks = [];
+                        await sendAudioToAI(audioBlob);
+                    } else {
+                        log("Дуу бичигдсэнгүй.");
+                    }
+                };
+
+                // Start silence detection loop
+                checkSilenceInterval = setInterval(checkSilence, 100);
+
+                // Start recording immediately
+                mediaRecorder.start();
+                document.getElementById('statusText').innerText = "Сонсож байна...";
+                log("Сонсож байна...");
+
+            } catch (err) {
+                console.error("Error accessing mic:", err);
+                document.getElementById('statusText').innerText = "Микрофон олдсонгүй";
+                log("Алдаа: " + err.message);
+            }
+        }
+
+        function stopCall() {
+            isCalling = false;
+            document.getElementById('phoneContainer').classList.remove('active');
+            document.getElementById('statusText').innerText = "Дуудлага дууслаа";
+
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            if (checkSilenceInterval) clearInterval(checkSilenceInterval);
+            if (audioContext) audioContext.close();
+        }
+
+        function manualSend() {
+            if (isCalling && mediaRecorder && mediaRecorder.state === 'recording') {
+                log("Гар удирдлагаар илгээлээ.");
+                mediaRecorder.stop();
+            }
+        }
+
+        function checkSilence() {
+            if (!isCalling || !analyser) return;
+
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(dataArray);
+
+            // Calculate average volume
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                sum += dataArray[i];
+            }
+            const average = sum / dataArray.length;
+            const volume = average / 255;
+
+            // Update visual meter
+            document.getElementById('volumeMeter').style.width = (volume * 1000) + "%";
+
+            if (volume > volumeThreshold) {
+                // User is speaking
+                if (!isSpeaking) {
+                    log("Дуу гарлаа.");
+                    isSpeaking = true;
+                }
+                silenceStart = Date.now();
+                document.getElementById('statusText').innerText = "Сонсож байна...";
+            } else {
+                // Silence
+                if (isSpeaking && (Date.now() - silenceStart > silenceThreshold)) {
+                    log("Чимээгүй байна (" + (Date.now() - silenceStart) + "ms). Илгээж байна...");
+                    isSpeaking = false;
+
+                    // Restart recorder to chop the file
+                    if (mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop();
+                    }
+                }
+            }
+        }
+
+        async function sendAudioToAI(audioBlob) {
+            document.getElementById('statusText').innerText = "Бодож байна...";
+            log("Аудио илгээж байна (" + audioBlob.size + " bytes)...");
+
+            const formData = new FormData();
+            formData.append("file", audioBlob);
+
+            try {
+                const response = await fetch('/talk', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error("Server Error: " + response.statusText);
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    log("AI Алдаа: " + data.error);
+                    document.getElementById('statusText').innerText = "Алдаа: " + data.error;
+                    return;
+                }
+
+                log("AI Хариуллаа: " + data.ai_text);
+
+                // Update Transcript
+                document.getElementById('transcript').innerText += "\nТа: " + data.user_text;
+                document.getElementById('transcript').innerText += "\nAI: " + data.ai_text;
+
+                // Play Audio
+                document.getElementById('statusText').innerText = "Ярьж байна...";
+                const audio = new Audio("data:audio/mp3;base64," + data.audio);
+
+                audio.onended = () => {
+                    if (isCalling) {
+                        document.getElementById('statusText').innerText = "Сонсож байна...";
+                        log("AI ярьж дууслаа. Дахин сонсож байна...");
+                        mediaRecorder.start(); // Start recording again
+                        silenceStart = Date.now(); // Reset silence timer
+                    }
+                };
+
+                audio.play();
+
+            } catch (error) {
+                console.error("Error:", error);
+                document.getElementById('statusText').innerText = "Холболтын алдаа";
+                log("Сүлжээ/Серверийн алдаа: " + error.message);
+            }
+        }
+    </script>
+</body>
+
+</html>
