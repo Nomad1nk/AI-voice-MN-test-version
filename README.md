@@ -1,4 +1,4 @@
-# AI Voice Receptionist (Mongolian Test Version)
+# AI Voice Operator (Mongolian Test Version)
 
 This project is a voice-enabled AI receptionist designed for "Sky Dental Clinic". It uses OpenAI's GPT-4o for intelligence and Realtime API for speech capabilities, specifically tailored to understand and speak Mongolian.
 
